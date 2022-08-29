@@ -5,6 +5,10 @@ from sklearn.datasets import make_swiss_roll, make_s_curve
 import gpflow
 from gpflow.utilities import print_summary, set_trainable, positive
 
+import matplotlib
+font = {'size'   : 15}
+matplotlib.rc('font', **font)
+
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="transductive", type=str, help='gp, graph_only, transductive, GGP, wavelet')
@@ -40,13 +44,14 @@ if plotting:
 
     G.set_coordinates(coord)
     G.plot_signal(labels, vertex_size = 10)
+    plt.title('Ground Truth')
     plt.show()
 
 def plot(pred, MAE = None):
     G = graphs.NNGraph(coord, k = 4)
     G.set_coordinates(coord)
     G.plot_signal(tf.concat((t, tf.reshape(pred, -1)), axis = 0).numpy(), vertex_size = 10)
-    plt.title('Prediction, MAE = {}'.format(MAE))
+    plt.title('Prediction, MAE = {:.2f}'.format(MAE))
     plt.show()
 
 class graph_diff(gpflow.kernels.Kernel):
@@ -203,7 +208,7 @@ if __name__ == '__main__':
     elif model == 'transductive':
         kernel = transductive(lengthscales = 1., variance = 1., g_sigma = 1000., g_var = 1.)
     elif model == 'GGP':
-        kernel = GGP(lengthscales = 1., variance = 1.)
+        kernel = GGP(lengthscales = 0.1, variance = 1.)
     elif model == 'wavelet':
         kernel = wavelet(low_pass=10., scales=[1., 5.], base_kernel = gpflow.kernels.SquaredExponential(lengthscales = 1., variance = 1.), node_feats = coord)
     
