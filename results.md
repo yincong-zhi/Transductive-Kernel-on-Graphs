@@ -31,36 +31,55 @@ python main.py --data=Citeseer --poly 0 22 0 0 0
 ```
 81.1%
 python main.py --data=Texas --poly -1 1 0 0 0
+
+training on validation
+86.5
+python main.py --data=Texas --train_on_val=True --poly 0 0.5 0 0 0
 ```
 
 ## Wisconsin
 ```
 82.4%
 python main.py --data=Wisconsin --poly 0 0.1 0 0 0
+
+training on validation
+82.4%
+python main.py --data=Wisconsin --train_on_val=True --poly 0 0 0 0.3 0
 ```
 
 ## Cornell
 ```
 75.7%
 python main.py --data=Cornell --poly 0 1 0 0 0
-```
 
-## Squirrel
-```
-45.2%
-python main.py --data=Cornell --poly 0 0.5 0 0 0
+training on validation
+81.1%
+python main.py --data=Cornell --train_on_val=True --poly 0 0.1 0 0 0
 ```
 
 ## Chameleon
 ```
 63.2%
 python main.py --data=Chameleon --poly 0 0.5 0 0 0
+
+training on validation
+63.4%
+python main.py --data=Chameleon --train_on_val=True --poly 0 0.4 0 0 0
 ```
 
 ## Squirrel
 ```
 53.8%
-python main.py --data=Chameleon --poly 0 0.1 0 0 0
+python main.py --data=Squirrel --poly 0 0.1 0 0 0
+
+train on validation
+54.2%
+python main.py --data=Squirrel --train_on_val=True --poly 0 0.5 0 0 0
+```
+
+## Actor
+```
+python main.py --data=Actor --poly 0 0.1 0 0 0
 ```
 
 # Compare to Spectral Kernel Learning

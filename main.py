@@ -44,6 +44,8 @@ else:
     ds = NodePredictionDataset(parser.data, "")
 
     adj, features, labels, train_idx, val_idx, test_idx, edge_index, edge_weights = ds.get_full_training_data()
+    if parser.train_on_val:
+        train_idx = np.concatenate((train_idx, val_idx))
     if not (adj.todense() == adj.todense().T).all():
         adj = 0.5 * (adj + adj.T)
     x, y, tx, ty, vx, vy, allx, ally = features[train_idx], labels[train_idx], features[test_idx], labels[test_idx], features[val_idx], labels[val_idx], features, labels
