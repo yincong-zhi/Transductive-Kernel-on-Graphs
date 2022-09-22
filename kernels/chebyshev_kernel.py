@@ -4,7 +4,7 @@ import gpflow.covariances as cov
 from gpflow.base import TensorLike
 from gpflow.inducing_variables import InducingPoints
 
-from wavelet_utils import matrix_polynomial, chebyshev_polynomial
+from .wavelet_utils import matrix_polynomial, chebyshev_polynomial
 
 
 class Chebyshev(gpflow.kernels.base.Kernel):
