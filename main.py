@@ -227,6 +227,7 @@ if __name__ == '__main__':
     m = gpflow.models.GPR(
         (tf.cast(x, dtype = tf.float64), y_hot), kernel=kernel
     )
+    print_summary(m)
 
     if parser.opt == 'scipy':
         opt = gpflow.optimizers.Scipy()

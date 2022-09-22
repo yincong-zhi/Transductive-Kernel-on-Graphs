@@ -79,7 +79,34 @@ python main.py --data=Squirrel --train_on_val=True --poly 0 0.5 0 0 0
 
 ## Actor
 ```
+34.9
 python main.py --data=Actor --poly 0 0.1 0 0 0
+
+train on validation
+36.9
+python main.py --data=Actor --train_on_val=True --poly 0 1 0 0 0
+```
+
+# Swiss Roll Continuous Curve
+
+## GP
+```
+MAE = 2.8019274333506656
+```
+
+## GGP
+```
+MAE = 2.8102933442677007
+```
+
+## Graph only
+```
+MAE = 0.9776992045437557
+```
+
+## Graph + feature data
+```
+MAE = 0.3340405595803043
 ```
 
 # Compare to Spectral Kernel Learning
@@ -109,26 +136,4 @@ Training labels - $s_i[:10]$, testing labels - $s_i[10:]$
 ```
 MAEs
 mean = 0.9735237124195903, se = 0.0082421925518
-```
-
-# Swiss Roll Continuous Curve
-
-## GP
-```
-MAE = 2.8019274333506656
-```
-
-## GGP
-```
-MAE = 2.8102933442677007
-```
-
-## Graph only
-```
-MAE = 0.9776992045437557
-```
-
-## Graph + feature data
-```
-MAE = 0.3340405595803043
 ```
