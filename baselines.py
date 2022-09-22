@@ -16,7 +16,7 @@ from kernels.ggp_kernel import GraphGP
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--kernel", default="ggp", type=str, help='ggp. chebyshev')
+parser.add_argument("--kernel", default="ggp", type=str, help='gp, ggp, chebyshev')
 parser.add_argument("--opt", default='adam', type=str, help="scipy, adam")
 parser.add_argument("--data", default='Cora', type=str, help="Cora, Citeseer, Texas, Wisconsin, Cornell, Chameleon, Squirrel")
 parser.add_argument("--scipy_max", default=50, type=float, help="maximum # of iterations for scipy optimizer")
@@ -55,14 +55,16 @@ else:
     G = graphs.Graph(adj.todense())
     G.compute_laplacian('normalized')
 
-if parser.kernel == "chebyshev":
+if parser.kernel == 'gp':
+    kernel = gpflow.kernels.SquaredExponential()
+elif parser.kernel == "chebyshev":
     #kernel = Chebyshev(L_normalized, poly_degree=poly_degree, base_kernel=base_kernel,node_feats=node_feats)
     pass
 elif parser.kernel == "ggp":
     kernel = GraphGP(adj, base_kernel=gpflow.kernels.Polynomial(), node_feats=allx)
 
 data = (tf.cast(tf.reshape(train_idx, (-1, 1)), tf.float64), tf.cast(y, dtype=tf.float64))
-num_classes = y.max().numpy() + 1
+num_classes = y.max() + 1
 invlink = gpflow.likelihoods.RobustMax(num_classes)  # Robustmax inverse link function
 likelihood = gpflow.likelihoods.MultiClass(num_classes, invlink=invlink)  # Multiclass likelihood
 
@@ -71,27 +73,24 @@ opt = tf.optimizers.Adam(lr=0.1)
 
 def step_callback(step, variables=None, values=None):
     # test acc
-    y_pred = m.predict_y(tf.cast(tx, tf.float64))[0]
+    y_pred = m.predict_y(tf.cast(test_idx, tf.float64))[0]
     y_class = tf.argmax(y_pred, 1)
     test_acc = (tf.reduce_sum(tf.cast(y_class == ty, tf.float64))/test_idx.shape[0]).numpy()
     # validation acc
-    y_pred_val = m.predict_y(tf.cast(vx, tf.float64))[0]
+    y_pred_val = m.predict_y(tf.cast(val_idx, tf.float64))[0]
     y_class_val = tf.argmax(y_pred_val, 1)
     val_acc = (tf.reduce_sum(tf.cast(y_class_val == vy, tf.float64))/val_idx.shape[0]).numpy()
     print(f'epoch = {step}', 'val acc =', val_acc, 'test acc =', test_acc)
-    training_loss.append(m.training_loss().numpy())
-    valid_accs.append(val_acc)
-    test_accs.append(test_acc)
+    #training_loss.append(m.training_loss().numpy())
+    #valid_accs.append(val_acc)
+    #test_accs.append(test_acc)
     if step % 10 == 0:
-        print_summary(m)
-        #plt.plot(kernel.e, kernel.sigmoid())
-        #plt.plot(kernel.e, 1./kernel.sigmoid())
-        #plt.legend([r'$r(\lambda)$', r'$k(\lambda)$'])
-        #plt.show()
+        #print_summary(m)
+        pass
 
 def optimize_tf(model, step_callback, lr=0.1):
     opt = tf.optimizers.Adam(lr=lr)
-    for epoch_idx in range(300):
+    for epoch_idx in range(50):
         with tf.GradientTape(watch_accessed_variables=False) as tape:
             tape.watch(model.trainable_variables)
             loss = model.training_loss()
