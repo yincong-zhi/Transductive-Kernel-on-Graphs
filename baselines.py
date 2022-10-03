@@ -58,8 +58,8 @@ else:
 if parser.kernel == 'gp':
     kernel = gpflow.kernels.SquaredExponential()
 elif parser.kernel == "chebyshev":
-    #kernel = Chebyshev(L_normalized, poly_degree=poly_degree, base_kernel=base_kernel,node_feats=node_feats)
-    pass
+    L_normalized = G.L.todense()
+    kernel = Chebyshev(L_normalized, poly_degree=5, base_kernel=gpflow.kernels.SquaredExponential() ,node_feats=tf.cast(allx, tf.float64))
 elif parser.kernel == "ggp":
     kernel = GraphGP(adj, base_kernel=gpflow.kernels.Polynomial(), node_feats=allx)
 
@@ -67,7 +67,7 @@ if parser.kernel in ['gp']:
     data = (tf.cast(x, tf.float64), tf.cast(y, dtype=tf.float64))
     val_step_call = vx
     test_step_call = tx
-elif parser.kernel in ["ggp"]:
+elif parser.kernel in ["ggp", 'chebyshev']:
     data = (tf.cast(tf.reshape(train_idx, (-1, 1)), tf.float64), tf.cast(y, dtype=tf.float64))
     val_step_call = val_idx
     test_step_call = test_idx

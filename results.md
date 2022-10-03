@@ -43,8 +43,8 @@ python main.py --data=Texas --train_on_val=True --poly 0 0.5 0 0 0
 python main.py --data=Wisconsin --poly 0 0.1 0 0 0
 
 training on validation
-82.4%
-python main.py --data=Wisconsin --train_on_val=True --poly 0 0 0 0.3 0
+86.3%
+python main.py --data=Wisconsin --train_on_val=True --poly 0 0 0 0.35 0
 ```
 
 ## Cornell
