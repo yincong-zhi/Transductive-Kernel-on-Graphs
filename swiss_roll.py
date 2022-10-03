@@ -11,11 +11,13 @@ matplotlib.rc('font', **font)
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--model", default="transductive", type=str, help='gp, graph_only, transductive, GGP, wavelet')
+parser.add_argument("--model", default="transductive", type=str, help='gp, graph_only, transductive, GGP, GGP_I, wavelet, wavelet_I')
+parser.add_argument("--seed", default=1, type=int, help='integer for generating the graph')
+parser.add_argument("--plot", default=False, type=bool, help='plot ground truth signal')
 parser = parser.parse_args()
 model = parser.model
 
-coord, labels = make_swiss_roll(1000, random_state = 1)
+coord, labels = make_swiss_roll(1000, random_state = parser.seed)
 #labels += np.random.randn(1000)
 #coord, labels = make_s_curve(1000)
 #coord = (coord - np.mean(coord))/np.std(coord)
@@ -23,23 +25,20 @@ coord, labels = make_swiss_roll(1000, random_state = 1)
 from pygsp import graphs
 import networkx as nx
 G = graphs.NNGraph(coord, k = 4)
-print('is graph connected:', G.is_connected())
+#print('is graph connected:', G.is_connected())
 G.compute_laplacian('normalized')
 
 training = 10
 data, t = coord[:training], labels[:training]
 test_data, test_t = coord[training:], labels[training:]
 
-plotting = False
 # plotting
-if plotting:
+if parser.plot:
     ax = plt.axes(projection='3d')
-    ax.scatter3D(data[:, 0], data[:, 1], data[:, 2], c=t)
-    plt.title('training points')
-    plt.show()
-    ax = plt.axes(projection='3d')
-    ax.scatter3D(coord[:, 0], coord[:, 1], coord[:, 2], c=labels)
-    plt.title('training + testing points')
+    p = ax.scatter3D(test_data[:, 0], test_data[:, 1], test_data[:, 2], c=test_t, marker='o', s=10)
+    p2 = ax.scatter3D(data[:, 0], data[:, 1], data[:, 2], c='red', s=50, marker='o', clim = [labels.min(), labels.max()])
+    plt.colorbar(p)
+    plt.title('training (red) and test points')
     plt.show()
 
     G.set_coordinates(coord)
@@ -105,10 +104,12 @@ class transductive(gpflow.kernels.Kernel):
         return tf.linalg.diag_part(self.K(X))
 
 class GGP(gpflow.kernels.Kernel):
-    def __init__(self, lengthscales = 1., variance = 1.):
+    def __init__(self, lengthscales = 1., variance = 1., base_kernel = 'RBF'):
         super().__init__(active_dims=None)
-        self.base_kernel = gpflow.kernels.SquaredExponential(lengthscales = lengthscales, variance = variance)
-        #self.base_kernel = gpflow.kernels.Polynomial(offset = lengthscales, variance = variance)
+        if base_kernel == 'RBF':
+            self.base_kernel = gpflow.kernels.SquaredExponential(lengthscales = lengthscales, variance = variance)
+        elif base_kernel == 'I':
+            self.base_kernel = gpflow.kernels.White(variance = variance)
         def convert_sparse_matrix_to_sparse_tensor(X):
             coo = X.tocoo()
             indices = np.mat([coo.row, coo.col]).transpose()
@@ -170,6 +171,7 @@ class wavelet(gpflow.kernels.base.Kernel):
         return tf.linalg.diag_part(self.K(X))
 
 def GP(kernel, data, test_data):
+    global m
     m = gpflow.models.GPR(
         data, kernel=kernel
     )
@@ -197,7 +199,7 @@ if __name__ == '__main__':
     if model in ['gp', 'transductive']:
         data_pair = (data, t.reshape(-1,1))
 
-    elif model in ['graph_only', 'GGP', 'wavelet']:
+    elif model in ['graph_only', 'GGP', 'GGP_I', 'wavelet', 'wavelet_I']:
         train_id, test_data = np.arange(training, dtype=np.float).reshape(-1,1), np.arange(training, G.N, dtype=np.float).reshape(-1,1)
         data_pair = (train_id, t.reshape(-1,1))
 
@@ -209,7 +211,11 @@ if __name__ == '__main__':
         kernel = transductive(lengthscales = 1., variance = 1., g_sigma = 1000., g_var = 1.)
     elif model == 'GGP':
         kernel = GGP(lengthscales = 0.1, variance = 1.)
+    elif model == 'GGP_I':
+        kernel = GGP(variance = 100., base_kernel='I')
     elif model == 'wavelet':
         kernel = wavelet(low_pass=10., scales=[1., 5.], base_kernel = gpflow.kernels.SquaredExponential(lengthscales = 1., variance = 1.), node_feats = coord)
+    elif model == 'wavelet_I':
+        kernel = wavelet(low_pass=10., scales=[1., 5.], base_kernel = None, node_feats = coord)
     
     GP(kernel, data_pair, test_data)

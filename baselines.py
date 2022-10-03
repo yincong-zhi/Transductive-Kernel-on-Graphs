@@ -18,8 +18,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--kernel", default="ggp", type=str, help='gp, ggp, chebyshev')
 parser.add_argument("--opt", default='adam', type=str, help="scipy, adam")
-parser.add_argument("--data", default='Cora', type=str, help="Cora, Citeseer, Texas, Wisconsin, Cornell, Chameleon, Squirrel")
-parser.add_argument("--scipy_max", default=50, type=float, help="maximum # of iterations for scipy optimizer")
+parser.add_argument("--data", default='Cora', type=str, help="Cora, Citeseer, Texas, Wisconsin, Cornell, Chameleon, Squirrel, Actor")
+parser.add_argument("--epoch", default=50, type=int, help="maximum # of iterations for scipy optimizer")
 parser.add_argument('--train_on_val', type=bool, default=False, help='If True, validation set is included in the training')
 parser = parser.parse_args()
 
@@ -63,21 +63,28 @@ elif parser.kernel == "chebyshev":
 elif parser.kernel == "ggp":
     kernel = GraphGP(adj, base_kernel=gpflow.kernels.Polynomial(), node_feats=allx)
 
-data = (tf.cast(tf.reshape(train_idx, (-1, 1)), tf.float64), tf.cast(y, dtype=tf.float64))
+if parser.kernel in ['gp']:
+    data = (tf.cast(x, tf.float64), tf.cast(y, dtype=tf.float64))
+    val_step_call = vx
+    test_step_call = tx
+elif parser.kernel in ["ggp"]:
+    data = (tf.cast(tf.reshape(train_idx, (-1, 1)), tf.float64), tf.cast(y, dtype=tf.float64))
+    val_step_call = val_idx
+    test_step_call = test_idx
 num_classes = y.max() + 1
 invlink = gpflow.likelihoods.RobustMax(num_classes)  # Robustmax inverse link function
 likelihood = gpflow.likelihoods.MultiClass(num_classes, invlink=invlink)  # Multiclass likelihood
 
-m = gpflow.models.VGP(data, likelihood=likelihood, kernel=kernel, num_latent_gps=num_classes)
+m = gpflow.models.VGP(data, likelihood=likelihood, kernel=kernel, num_latent_gps=int(num_classes))
 opt = tf.optimizers.Adam(lr=0.1)
 
 def step_callback(step, variables=None, values=None):
     # test acc
-    y_pred = m.predict_y(tf.cast(test_idx, tf.float64))[0]
+    y_pred = m.predict_y(tf.cast(test_step_call, tf.float64))[0]
     y_class = tf.argmax(y_pred, 1)
     test_acc = (tf.reduce_sum(tf.cast(y_class == ty, tf.float64))/test_idx.shape[0]).numpy()
     # validation acc
-    y_pred_val = m.predict_y(tf.cast(val_idx, tf.float64))[0]
+    y_pred_val = m.predict_y(tf.cast(val_step_call, tf.float64))[0]
     y_class_val = tf.argmax(y_pred_val, 1)
     val_acc = (tf.reduce_sum(tf.cast(y_class_val == vy, tf.float64))/val_idx.shape[0]).numpy()
     print(f'epoch = {step}', 'val acc =', val_acc, 'test acc =', test_acc)
@@ -90,7 +97,7 @@ def step_callback(step, variables=None, values=None):
 
 def optimize_tf(model, step_callback, lr=0.1):
     opt = tf.optimizers.Adam(lr=lr)
-    for epoch_idx in range(50):
+    for epoch_idx in range(parser.epoch):
         with tf.GradientTape(watch_accessed_variables=False) as tape:
             tape.watch(model.trainable_variables)
             loss = model.training_loss()
