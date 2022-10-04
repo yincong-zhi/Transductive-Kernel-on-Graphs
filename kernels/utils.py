@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
-
+from scipy.interpolate import PchipInterpolator
 
 def low_pass_filter_from_string(name):
     if name == "low":
@@ -139,72 +139,83 @@ def scalar_polynomial(x, coefficients):
         monomial *= x
     return polynomial
 
+def gamma(j, a, b):
+    if j == 0:
+        return 1.0 / np.pi * (np.arccos(a) - np.arccos(b))
+    return 2.0 / np.pi * ((np.sin(j * np.arccos(a)) - np.sin(j * np.arccos(b))) / j)
+    
+def g(j, p):
+    alpha_p = np.pi / (p + 2.0)
+    g_j_p = ((1.0 - (j / (p + 2))) * np.sin(alpha_p) * np.cos(j * alpha_p) + 1.0 / (p + 2) * np.cos(alpha_p) * np.sin(j * alpha_p)) / np.sin(alpha_p)
+    return g_j_p
 
-def plot_spectral_filters(low_scale, band_scales, low_filter, band_filter, eigvals, pred_low_scale=None,
-                          pred_band_scales=None, approx=False, approx_low_filter=None, approx_band_filter=None,
-                          eigvals_bottom=False, save_pdf=False, figsize=None):
-    N = 4*len(eigvals)
-    x = np.linspace(eigvals.min(), eigvals.max(), N)
+def recursive_w(matrix, vec, w_j, w_jj):
+    if w_j is None:
+        return vec              # j = 0
+    if w_jj is None:
+        return matrix @ vec     # j = 1
+    return 2.0 * matrix @ w_j - w_jj
 
-    fig, ax = plt.subplots(figsize=figsize)
+def estimate_number_eigenvals(matrix, degree, num_samples, a, b):
+    vals = []
+    for _ in range(num_samples):
+        vec = np.random.normal(0.0, 1.0, size=len(matrix))
+        w_j = None
+        w_jj = None
+        val = 0.0
+        for j in range(degree):
+            # Compute recursive w
+            w = recursive_w(matrix, vec, w_j, w_jj)
+            w_jj = w_j
+            w_j = w
+            # Compute value for current degree
+            g_j_p = g(j, degree)
+            gamma_j = gamma(j, a, b)
+            val += g_j_p * gamma_j * vec.T @ w
+        vals.append(val)
+    return np.mean(vals)
 
-    if eigvals_bottom:
-        ax.plot(eigvals, np.zeros_like(eigvals), 'x', markersize=8.0, label="eigenvalues")
+def estimate_spectral_density(matrix, num_steps, degree, num_samples, plot=False):
+    steps = np.linspace(-1.0, 1.0, num_steps)
+    # print(steps)
+    mus = []
+    for b in steps:
+        mu = estimate_number_eigenvals(matrix, degree, num_samples, -1.0, b)
+        mus.append(mu)
+        print(b, mu)
 
-    # Plot low pass filter
-    ax.plot(x, low_filter(x, low_scale), color="blue", linewidth=3.0, label="low pass")
-    if not eigvals_bottom:
-        ax.plot(eigvals, low_filter(eigvals, low_scale), 'x', color="blue")
-    if pred_low_scale is not None:
-        if approx:
-            ax.plot(x, approx_low_filter(x, pred_low_scale), color="blue", linewidth=3.0, linestyle="dashed", label="predicted low pass (approx)")
-            ax.plot(x, low_filter(x, pred_low_scale), color="blue", linewidth=3.0, linestyle="dotted", label="predicted low pass", alpha=0.5)
-        else:
-            ax.plot(x, low_filter(x, pred_low_scale), color="blue", linewidth=3.0, linestyle="dashed", label="predicted low pass")
+    inter = PchipInterpolator(steps, np.array(mus))
+    spectral_density = inter.derivative()
 
-    # Plot band pass filters
-    colors = ["red", "orange", "yellow", "green"]
-    for idx in range(len(band_scales)):
-        ax.plot(x, band_filter(x, band_scales[idx]), color=colors[idx], linewidth=3.0, label=f"band pass {idx}")
-        if not eigvals_bottom:
-            ax.plot(eigvals, band_filter(eigvals, band_scales[idx]), 'x', color=colors[idx])
-        if pred_band_scales is not None:
-            if approx:
-                ax.plot(x, approx_band_filter(x, pred_band_scales[idx]), color=colors[idx],
-                         linewidth=3.0, linestyle="dashed", label=f"predicted band pass {idx} (approx)")
-                ax.plot(x, band_filter(x, pred_band_scales[idx]), color=colors[idx], linewidth=3.0, linestyle="dotted", label="predicted band pass",
-                         alpha=0.5)
-            else:
-                ax.plot(x, band_filter(x, pred_band_scales[idx]), color=colors[idx],
-                         linestyle="dashed", linewidth=3.0, label=f"predicted band pass {idx}")
-
-    # Plot complete filter
-    full = compute_full_filter(x, low_scale, band_scales, low_filter, band_filter)
-    full_eigvals = compute_full_filter(eigvals, low_scale, band_scales, low_filter, band_filter)
-    if pred_low_scale is not None:
-        if approx:
-            pred_full = compute_full_filter(x, pred_low_scale, pred_band_scales, approx_low_filter, approx_band_filter)
-        else:
-            pred_full = compute_full_filter(x, pred_low_scale, pred_band_scales, low_filter, band_filter)
-        plt.plot(x, pred_full, color="black", linestyle="dashed", linewidth=3.0, label="predicted full filter (approx)")
-    ax.plot(x, full, color="black", linewidth=3.0, label="full filter")
-    if not eigvals_bottom:
-        ax.plot(eigvals, full_eigvals, 'x', color="black")
-
-    title = f"low pass={low_scale:.2f}"
-    if pred_low_scale is not None:
-        title += f" ({pred_low_scale:.2f})"
-    for idx in range(len(band_scales)):
-        title += f" band pass {idx}={band_scales[idx]:.2f}"
-        if pred_band_scales is not None:
-            title += f" ({pred_band_scales[idx]:.2f})"
-    ax.set_title(title)
-
-    ax.legend(prop={'size': 11}, loc=(0.75, 0.15))
-    if save_pdf:
-        fig.savefig("filters.pdf")
-    fig.show()
-
+    if plot:
+        plt.xlabel("eigenvalue")
+        plt.ylabel("cumulative spectral density")
+        plt.title("Estimated cumulative spectral density")
+        plt.plot(steps, inter(steps))
+        plt.show()
+    return spectral_density
+    
+def get_approximation_projection_matrix(matrix, degree, num_steps, sd_steps, sd_degree, sd_samples,
+                                        plot=False):
+    """
+    We aim to compute the polynomial approximation of the filter function at linearly spaced
+    points on the real line with higher weights where there are more eigenvalues on that
+    line. This can be done by projecting the unapproximated filter function values y at the
+    linearly spaced points using the weighted projection matrix to get polynomial coefficients
+        c = [V^T W V]^-1 V^T y = P y,
+    where V is the Vandermonde matrix, i.e.
+        [[1     x1      x1^2        x1^3        ...]
+         [1     x2      x2^2        x2^3        ...]
+         [1     x3      x3^2        x3^3        ...]]
+    and W is a diagonal matrix with the weights of the points on the real line.
+    """
+    ls = np.linspace(-1.0, 1.0, num_steps)
+    V = np.vander(ls, N=degree+1, increasing=True)
+    spectral_density = estimate_spectral_density(matrix, sd_steps, sd_degree, sd_samples, plot)
+    W = spectral_density(ls)
+    W = np.diag(W / np.sum(W))
+    P = np.linalg.inv(V.T @ W @ V) @ V.T @ W
+    return P
 
 if __name__ == '__main__':
     x = np.linspace(0.0, 2.0, num=100)

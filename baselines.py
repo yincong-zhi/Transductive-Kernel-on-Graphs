@@ -13,10 +13,11 @@ from pygsp import graphs
 
 from kernels.chebyshev_kernel import Chebyshev
 from kernels.ggp_kernel import GraphGP
+from kernels.wavelet_kernel import SubgraphAdaptiveApproximateWavelet, AdaptiveApproximateWavelet, Wavelet
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--kernel", default="ggp", type=str, help='gp, ggp, chebyshev')
+parser.add_argument("--kernel", default="ggp", type=str, help='gp, ggp, wavelet, chebyshev')
 parser.add_argument("--opt", default='adam', type=str, help="scipy, adam")
 parser.add_argument("--data", default='Cora', type=str, help="Cora, Citeseer, Texas, Wisconsin, Cornell, Chameleon, Squirrel, Actor")
 parser.add_argument("--epoch", default=50, type=int, help="maximum # of iterations for scipy optimizer")
@@ -58,8 +59,14 @@ else:
 if parser.kernel == 'gp':
     kernel = gpflow.kernels.SquaredExponential()
 elif parser.kernel == "chebyshev":
-    L_normalized = G.L.todense()
+    L_normalized = tf.cast(G.L.todense(), tf.float62)
     kernel = Chebyshev(L_normalized, poly_degree=5, base_kernel=gpflow.kernels.SquaredExponential() ,node_feats=tf.cast(allx, tf.float64))
+elif parser.kernel == 'wavelet':
+    L_normalized = G.L.todense()
+    #kernel = SubgraphAdaptiveApproximateWavelet(normalized_L=L_normalized,     base_kernel=gpflow.kernels.SquaredExponential(), poly_degree=3, node_feats=tf.cast(allx, tf.float64))
+    #kernel.set_subgraph()
+    kernel = AdaptiveApproximateWavelet(L_normalized, base_kernel=gpflow.kernels.SquaredExponential(), poly_degree=5,
+        node_feats=tf.cast(allx, tf.float64))
 elif parser.kernel == "ggp":
     kernel = GraphGP(adj, base_kernel=gpflow.kernels.Polynomial(), node_feats=allx)
 
@@ -67,7 +74,7 @@ if parser.kernel in ['gp']:
     data = (tf.cast(x, tf.float64), tf.cast(y, dtype=tf.float64))
     val_step_call = vx
     test_step_call = tx
-elif parser.kernel in ["ggp", 'chebyshev']:
+elif parser.kernel in ['wavelet', 'ggp', 'chebyshev']:
     data = (tf.cast(tf.reshape(train_idx, (-1, 1)), tf.float64), tf.cast(y, dtype=tf.float64))
     val_step_call = val_idx
     test_step_call = test_idx
