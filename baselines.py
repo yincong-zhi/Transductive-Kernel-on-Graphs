@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--kernel", default="ggp", type=str, help='gp, ggp, wavelet, chebyshev')
 parser.add_argument("--opt", default='adam', type=str, help="scipy, adam")
 parser.add_argument("--data", default='Cora', type=str, help="Cora, Citeseer, Texas, Wisconsin, Cornell, Chameleon, Squirrel, Actor")
-parser.add_argument("--epoch", default=50, type=int, help="maximum # of iterations for scipy optimizer")
+parser.add_argument("--epoch", default=100, type=int, help="maximum # of iterations for scipy optimizer")
 parser.add_argument('--train_on_val', type=bool, default=False, help='If True, validation set is included in the training')
 parser = parser.parse_args()
 
@@ -63,10 +63,8 @@ elif parser.kernel == "chebyshev":
     kernel = Chebyshev(L_normalized, poly_degree=5, base_kernel=gpflow.kernels.SquaredExponential() ,node_feats=tf.cast(allx, tf.float64))
 elif parser.kernel == 'wavelet':
     L_normalized = G.L.todense()
-    #kernel = SubgraphAdaptiveApproximateWavelet(normalized_L=L_normalized,     base_kernel=gpflow.kernels.SquaredExponential(), poly_degree=3, node_feats=tf.cast(allx, tf.float64))
-    #kernel.set_subgraph()
-    kernel = AdaptiveApproximateWavelet(L_normalized, base_kernel=gpflow.kernels.SquaredExponential(), poly_degree=5,
-        node_feats=tf.cast(allx, tf.float64))
+    #kernel = AdaptiveApproximateWavelet(L_normalized, base_kernel=gpflow.kernels.SquaredExponential(), poly_degree=5, low_pass=5.0, scales=(0.4, 0.8), node_feats=tf.cast(allx, tf.float64))
+    kernel = AdaptiveApproximateWavelet(L_normalized, base_kernel=gpflow.kernels.SquaredExponential(), poly_degree=5, low_pass=5.0, scales=(0.4, 0.8), node_feats=tf.cast(allx, tf.float64), sd_degree=10, sd_samples=100, sd_steps_divider=64)
 elif parser.kernel == "ggp":
     kernel = GraphGP(adj, base_kernel=gpflow.kernels.Polynomial(), node_feats=allx)
 
