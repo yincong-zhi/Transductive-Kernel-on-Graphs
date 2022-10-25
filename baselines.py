@@ -17,7 +17,7 @@ from kernels.wavelet_kernel import SubgraphAdaptiveApproximateWavelet, AdaptiveA
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--kernel", default="ggp", type=str, help='gp, ggp, wavelet, chebyshev')
+parser.add_argument("--model", default="ggp", type=str, help='gp, ggp, wavelet, chebyshev, lp')
 parser.add_argument("--opt", default='adam', type=str, help="scipy, adam")
 parser.add_argument("--data", default='Cora', type=str, help="Cora, Citeseer, Texas, Wisconsin, Cornell, Chameleon, Squirrel, Actor")
 parser.add_argument("--epoch", default=100, type=int, help="maximum # of iterations for scipy optimizer")
@@ -56,23 +56,46 @@ else:
     G = graphs.Graph(adj.todense())
     G.compute_laplacian('normalized')
 
-if parser.kernel == 'gp':
+def label_prop():
+    labels_one_hot = np.zeros((G.N, y.max()+1))
+    for i in range(y.max()+1):
+        # if equal to label set 1, not equal to label set -1, unlabeled set to 0
+        labels_one_hot[train_idx, i] = np.array(y == i).astype(float)
+
+    D = np.diag(1/np.sqrt(G.d))
+    # remove inf from division by 0 from isolated nodes
+    D[np.isinf(D)] = 0.
+    S = D @ G.W @ D
+
+    alpha = 0.9 # from paper
+    inv = (1-alpha) * np.linalg.inv(np.eye(S.shape[0]) - alpha*S)
+    prob = inv @ labels_one_hot
+    pred = prob.argmax(1) # find max in the column
+    # return percentage accuracy on test
+    return np.sum(pred[test_idx] == np.array(ty))/ty.shape[0] * 100
+
+if parser.model == 'lp':
+    label_prop_acc = label_prop()
+    print(f'label propagation accuracy = {label_prop_acc:.2f}%')
+    exit()
+    
+if parser.model == 'gp':
     kernel = gpflow.kernels.SquaredExponential()
-elif parser.kernel == "chebyshev":
+elif parser.model == "chebyshev":
     L_normalized = tf.cast(G.L.todense(), tf.float62)
     kernel = Chebyshev(L_normalized, poly_degree=5, base_kernel=gpflow.kernels.SquaredExponential() ,node_feats=tf.cast(allx, tf.float64))
-elif parser.kernel == 'wavelet':
+elif parser.model == 'wavelet':
     L_normalized = G.L.todense()
     #kernel = AdaptiveApproximateWavelet(L_normalized, base_kernel=gpflow.kernels.SquaredExponential(), poly_degree=5, low_pass=5.0, scales=(0.4, 0.8), node_feats=tf.cast(allx, tf.float64))
     kernel = AdaptiveApproximateWavelet(L_normalized, base_kernel=gpflow.kernels.SquaredExponential(), poly_degree=5, low_pass=5.0, scales=(0.4, 0.8), node_feats=tf.cast(allx, tf.float64), sd_degree=10, sd_samples=100, sd_steps_divider=64)
-elif parser.kernel == "ggp":
+elif parser.model == "ggp":
     kernel = GraphGP(adj, base_kernel=gpflow.kernels.Polynomial(), node_feats=allx)
 
-if parser.kernel in ['gp']:
+if parser.model in ['gp']:
     data = (tf.cast(x, tf.float64), tf.cast(y, dtype=tf.float64))
     val_step_call = vx
     test_step_call = tx
-elif parser.kernel in ['wavelet', 'ggp', 'chebyshev']:
+elif parser.model in ['wavelet', 'ggp', 'chebyshev']:
     data = (tf.cast(tf.reshape(train_idx, (-1, 1)), tf.float64), tf.cast(y, dtype=tf.float64))
     val_step_call = val_idx
     test_step_call = test_idx
@@ -110,5 +133,5 @@ def optimize_tf(model, step_callback, lr=0.1):
         opt.apply_gradients(zip(gradients, model.trainable_variables))
         step_callback(epoch_idx)
         #print(f"{epoch_idx}:\tLoss={loss}")
-        
+
 optimize_tf(m, step_callback, lr = 0.1)
