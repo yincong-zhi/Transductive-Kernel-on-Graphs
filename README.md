@@ -1,91 +1,93 @@
-# Results on Real World Datasets
+# Transductive Kernels for Gaussian Processes on Graphs
 
-## Cora
-```
-80.3%
-python main.py --scipy_max=31 --poly 0 0.5 0 0 0
+This repository accompanies the paper [Transductive Kernels for Gaussian Processes on Graphs](https://arxiv.org/abs/2211.15322). The implementation is built on [GPflow 2.2.1](https://github.com/GPflow/GPflow/releases/tag/v2.2.1).
 
-training on validation
-83.8%
-python main.py --train_on_val=True --scipy_max=31 --poly 0 2.5 0 0 0
-```
-<!--
-To try
-```
-python main.py --poly 0 3.5 0 0 0
-```
--->
-## Citeseer
-```
-70.5%
-python main.py --data=Citeseer --poly 0 22 0 0 0
+# Commands for Real World Data Results
 
-training on validation
-76.7%
-python main.py --data=Citeseer --train_on_validation=True --poly 0 22 0 0 0
-```
-<!--
-To try
-```
-python main.py --data=Citeseer --poly 0 22 0 0 0
-```
--->
 ## Texas
 ```
-81.1%
+TGGP
 python main.py --data=Texas --poly -1 1 0 0 0
+81.1%
 
 training on validation
-86.5
 python main.py --data=Texas --train_on_val=True --poly 0 0.5 0 0 0
+86.5%
 ```
 
 ## Wisconsin
 ```
-82.4%
+TGGP
 python main.py --data=Wisconsin --poly 0 0.1 0 0 0
+82.4%
 
 training on validation
-86.3%
 python main.py --data=Wisconsin --train_on_val=True --poly 0 0 0 0.35 0
+86.3%
 ```
 
 ## Cornell
 ```
-75.7%
+TGGP
 python main.py --data=Cornell --poly 0 1 0 0 0
+75.7%
 
 training on validation
-81.1%
 python main.py --data=Cornell --train_on_val=True --poly 0 0.1 0 0 0
+81.1%
 ```
 
 ## Chameleon
 ```
-63.2%
+TGGP
 python main.py --data=Chameleon --poly 0 0.5 0 0 0
+63.2%
 
 training on validation
-63.4%
 python main.py --data=Chameleon --train_on_val=True --poly 0 0.4 0 0 0
+63.4%
+```
+
+## Cora
+```
+TGGP
+python main.py --epoch=31 --poly 0 0.5 0 0 0
+80.3%
+
+training on validation
+python main.py --train_on_val=True --epoch=31 --poly 0 2.5 0 0 0
+83.8%
+```
+
+## Citeseer
+```
+TGGP
+python main.py --data=Citeseer --poly 0 22 0 0 0
+70.5%
+
+training on validation
+python main.py --data=Citeseer --train_on_validation=True --poly 0 22 0 0 0
+76.7%
 ```
 
 ## Squirrel
 ```
-53.8%
+TGGP
 python main.py --data=Squirrel --poly 0 0.1 0 0 0
+53.8%
 
 train on validation
-54.2%
 python main.py --data=Squirrel --train_on_val=True --poly 0 0.5 0 0 0
+54.2%
 ```
 
 ## Actor
 ```
-34.9
+TGGP
 python main.py --data=Actor --poly 0 0.1 0 0 0
+34.9
 
 train on validation
-36.9
 python main.py --data=Actor --train_on_val=True --poly 0 1 0 0 0
+36.9
 ```

@@ -17,7 +17,7 @@ parser.add_argument("--kernel", default="graph_poly", type=str, help='polynomial
 parser.add_argument("--opt", default='scipy', type=str, help="scipy, adam")
 parser.add_argument("--data", default='Cora', type=str, help="Cora, Citeseer, Texas, Wisconsin, Cornell, Chameleon, Squirrel")
 parser.add_argument("--poly", default=[0., 1., 0., 0., 0.], type=float, nargs="+", help="polynomial coefficients")
-parser.add_argument("--scipy_max", default=50, type=float, help="maximum # of iterations for scipy optimizer")
+parser.add_argument("--epoch", default=50, type=float, help="use small if opt=scipy, large if opt=adam")
 parser.add_argument('--train_on_val', type=bool, default=False, help='If True, validation set is included in the training')
 parser = parser.parse_args()
 
@@ -231,14 +231,15 @@ if __name__ == '__main__':
 
     if parser.opt == 'scipy':
         opt = gpflow.optimizers.Scipy()
-        opt.minimize(m.training_loss, variables=m.trainable_variables, step_callback = step_callback, options=dict(maxiter=ci_niter(parser.scipy_max)))
+        opt.minimize(m.training_loss, variables=m.trainable_variables, step_callback = step_callback, options=dict(maxiter=ci_niter(parser.epoch)))
         pred = tf.math.argmax(m.predict_f(tf.cast(tx, dtype = tf.float64))[0], axis = 1)
-        print('% accuracy =', tf.reduce_sum(tf.cast(pred == ty, tf.float64)).numpy()/ty.shape[0] * 100.)
+        #print('% accuracy =', tf.reduce_sum(tf.cast(pred == ty, tf.float64)).numpy()/ty.shape[0] * 100.)
+        print('% accuraccy =', test_accs[np.argmax(valid_accs)])
 
     elif parser.opt == 'adam':
         def optimize_tf(model, step_callback, lr=0.1):
             opt = tf.optimizers.Adam(lr=lr)
-            for epoch_idx in range(300):
+            for epoch_idx in range(parser.epoch):
                 with tf.GradientTape(watch_accessed_variables=False) as tape:
                     tape.watch(model.trainable_variables)
                     loss = model.training_loss()
@@ -247,5 +248,6 @@ if __name__ == '__main__':
                 step_callback(epoch_idx)
         optimize_tf(m, step_callback, lr=0.1)
         pred = tf.math.argmax(m.predict_f(tf.cast(tx, dtype = tf.float64))[0], axis = 1)
-        print('% accuracy =', tf.reduce_sum(tf.cast(pred == ty, tf.float64)).numpy()/ty.shape[0] * 100.)
+        #print('% accuracy =', tf.reduce_sum(tf.cast(pred == ty, tf.float64)).numpy()/ty.shape[0] * 100.)
+        print('% accuraccy =', test_accs[np.argmax(valid_accs)])
 
